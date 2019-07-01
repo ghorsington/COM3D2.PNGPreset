@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using B83.Win32;
 using UnityEngine;
 
@@ -9,9 +10,17 @@ namespace COM3D2.PNGPreset.Managed
 {
     public static class PNGPreset
     {
-        private static byte[] IEND_MAGIC = { 73, 69, 78, 68 };
+        private static readonly byte[] IEND_MAGIC = {73, 69, 78, 68};
+        
+        // Define both to be the same length to reduce number of buffers needed from two to one
+        internal static byte[] EXT_DATA_BEGIN_MAGIC = Encoding.ASCII.GetBytes("EXTPRESET_BGN");
+        internal static byte[] EXT_DATA_END_MAGIC = Encoding.ASCII.GetBytes("EXTPRESET_END");
 
         private static readonly UnityDragAndDropHook dragAndDropHook = new UnityDragAndDropHook();
+
+        private static readonly string PresetPath = Path.Combine(UTY.gameProjectPath, "Preset");
+
+        private static ThumShot ThumShot => GameMain.Instance.ThumCamera.GetComponent<ThumShot>();
 
         public static void StartDragAndDrop()
         {
@@ -31,14 +40,14 @@ namespace COM3D2.PNGPreset.Managed
 
             foreach (var apathname in apathnames)
             {
-                if(Path.GetExtension(apathname) != ".png")
+                if (Path.GetExtension(apathname) != ".png")
                     continue;
-                if(Path.GetDirectoryName(apathname) == PresetPath)
+                if (Path.GetDirectoryName(apathname) == PresetPath)
                     continue;
 
                 var preset = GameMain.Instance.CharacterMgr.PresetLoad(apathname);
 
-                if(preset == null)
+                if (preset == null)
                     continue;
 
                 try
@@ -50,10 +59,11 @@ namespace COM3D2.PNGPreset.Managed
                 catch (Exception)
                 {
                 }
+
                 needUpdate = true;
             }
 
-            if(needUpdate)
+            if (needUpdate)
                 BaseMgr<PresetMgr>.Instance.UpdatePresetList();
         }
 
@@ -62,11 +72,12 @@ namespace COM3D2.PNGPreset.Managed
             list.AddRange(Directory.GetFiles(PresetPath, "*.png").Select(mgr.PresetLoad).Where(item => item != null));
         }
 
-        public static bool PresetLoadHook(CharacterMgr mgr, out CharacterMgr.Preset result, BinaryReader br, string fileName)
+        public static bool PresetLoadHook(CharacterMgr mgr, out CharacterMgr.Preset result, BinaryReader br,
+            string fileName)
         {
             result = null;
 
-            if (fileName == null || Path.GetExtension(fileName) != ".png")
+            if (fileName == null || !Path.GetExtension(fileName).Equals(".png", StringComparison.InvariantCultureIgnoreCase))
                 return false;
 
             var stream = br.BaseStream;
@@ -81,7 +92,7 @@ namespace COM3D2.PNGPreset.Managed
                 if (len != IEND_MAGIC.Length)
                     return true;
 
-                if (buf.SequenceEqual(IEND_MAGIC))
+                if (BytesEqual(buf, IEND_MAGIC))
                     break;
             }
 
@@ -101,9 +112,83 @@ namespace COM3D2.PNGPreset.Managed
             return true;
         }
 
-        public static bool PresetSaveHook(CharacterMgr mgr, out CharacterMgr.Preset preset, Maid maid, CharacterMgr.PresetType presetType)
+        public static void PresetSetHook(CharacterMgr mgr, Maid maid, CharacterMgr.Preset preset)
         {
-            if(!Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.LeftControl))
+            if (!ExtPresetSupport.Enabled)
+                return;
+
+            Debug.Log($"Trying to set preset!");
+
+            if (preset.strFileName == null ||
+                !Path.GetExtension(preset.strFileName).Equals(".png", StringComparison.InvariantCulture))
+            {
+                Debug.Log($"Preset file is not a PNG! File name: {preset.strFileName}");
+
+                return;
+            }
+
+            var presetFile = Path.Combine(PresetPath, preset.strFileName);
+
+            Debug.Log($"Path: {presetFile}");
+
+            if (!File.Exists(presetFile))
+            {
+                Debug.Log("No such file found!");
+                return;
+            }
+
+            using (var fs = File.OpenRead(presetFile))
+            {
+                var buf = new byte[EXT_DATA_BEGIN_MAGIC.Length];
+                fs.Seek(-buf.Length, SeekOrigin.End);
+
+                fs.Read(buf, 0, buf.Length);
+
+                if (!BytesEqual(buf, EXT_DATA_END_MAGIC))
+                {
+                    Debug.Log("No end magic found!");
+                    return;
+                }
+
+                Debug.Log("Found extpreset magic! Getting data...");
+
+                var pos = fs.Position - EXT_DATA_BEGIN_MAGIC.Length;
+
+                while (true)
+                {
+                    if (pos < 0) // Just make sure so we don't f up in case the user tampered with the file
+                        return;
+                    fs.Position = pos;
+                    fs.Read(buf, 0, buf.Length);
+
+                    if (BytesEqual(buf, EXT_DATA_BEGIN_MAGIC))
+                        break;
+                    pos--;
+                }
+
+                Debug.Log($"Found EXT start at {fs.Position}");
+
+                ExtPresetSupport.LoadExPresetData(fs, maid);
+            }
+        }
+
+        private static bool BytesEqual(byte[] r, byte[] l)
+        {
+            if (r.Length != l.Length)
+                return false;
+
+            // ReSharper disable once LoopCanBeConvertedToQuery
+            for (var i = 0; i < r.Length; i++)
+                if (r[i] != l[i])
+                    return false;
+
+            return true;
+        }
+
+        public static bool PresetSaveHook(CharacterMgr mgr, out CharacterMgr.Preset preset, Maid maid,
+            CharacterMgr.PresetType presetType)
+        {
+            if (!Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.LeftControl))
             {
                 preset = null;
                 return false;
@@ -112,10 +197,10 @@ namespace COM3D2.PNGPreset.Managed
             preset = new CharacterMgr.Preset
             {
                 ePreType = presetType,
-                texThum = ThumShot.ShotThumPreset(maid),
+                texThum = ThumShot.ShotThumPreset(maid)
             };
 
-            var bigThumTex = ThumShot.ShotThumCard(maid);
+            var bigThumTex = ThumUtil.MakeMaidThumbnail(maid);
 
             if (!Directory.Exists(PresetPath))
                 Directory.CreateDirectory(PresetPath);
@@ -125,15 +210,22 @@ namespace COM3D2.PNGPreset.Managed
             {
                 bw.Write(bigThumTex.EncodeToPNG());
                 bw.Write(mgr.PresetSaveNotWriteFile(maid, presetType));
+
+                var exData = ExtPresetSupport.SaveExPresetData(maid);
+
+                if (exData != null)
+                {
+                    bw.Write(EXT_DATA_BEGIN_MAGIC);
+                    bw.Write(exData);
+                    bw.Write(EXT_DATA_END_MAGIC);
+                }
             }
 
-            GameMain.Instance.SysDlg.Show("Saved image as a preset card\n(If you want to save a normal preset, don't hold [CTRL] while saving)", SystemDialog.TYPE.OK);
+            GameMain.Instance.SysDlg.Show(
+                "Saved image as a preset card\n(If you want to save a normal preset, don't hold [CTRL] while saving)",
+                SystemDialog.TYPE.OK);
 
             return true;
         }
-
-        private static readonly string PresetPath = Path.Combine(UTY.gameProjectPath, "Preset");
-
-        private static ThumShot ThumShot => GameMain.Instance.ThumCamera.GetComponent<ThumShot>();
     }
 }
