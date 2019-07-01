@@ -24,6 +24,10 @@ namespace COM3D2.PNGPreset.Patcher
             var presetSaveHookMethDef = pngPresetTd.GetMethod("PresetSaveHook");
             presetSaveMethDef.InjectWith(presetSaveHookMethDef, flags: InjectFlags.ModifyReturn | InjectFlags.PassInvokingInstance | InjectFlags.PassParametersVal);
 
+            var presetSetMethDef = characterMgrTd.GetMethod("PresetSet");
+            var presetSetHookMethDef = pngPresetTd.GetMethod("PresetSetHook");
+            presetSetMethDef.InjectWith(presetSetHookMethDef, -1, flags: InjectFlags.PassInvokingInstance | InjectFlags.PassParametersVal);
+
             var presetListLoadMethDef = characterMgrTd.GetMethod("PresetListLoad");
             var presetListLoadHookMethDef = pngPresetTd.GetMethod("PresetListLoadHook");
             presetListLoadMethDef.InjectWith(presetListLoadHookMethDef, -1, flags: InjectFlags.PassInvokingInstance | InjectFlags.PassLocals, localsID: new []{ 0 });
