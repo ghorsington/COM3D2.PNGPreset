@@ -2,80 +2,16 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.InteropServices;
 using B83.Win32;
 using UnityEngine;
 
 namespace COM3D2.PNGPreset.Managed
 {
-    static class NativeMethods
-    {
-        [DllImport("mono.dll", EntryPoint = "mono_add_internal_call")]
-        public static extern void MonoAddInternalCall(string name, IntPtr gconstpointer);
-
-        [DllImport("mono.dll", EntryPoint = "mono_lookup_internal_call")]
-        public static extern IntPtr MonoLookupInternalCall(IntPtr gconstpointer);
-
-        public static IntPtr GetInternalPointer(this MethodInfo mi) => MonoLookupInternalCall(mi.MethodHandle.Value);
-
-        public static T AsDelegate<T>(this IntPtr ptr) where T : class => Marshal.GetDelegateForFunctionPointer(ptr, typeof(T)) as T;
-    }
-
     public static class PNGPreset
     {
         private static byte[] IEND_MAGIC = { 73, 69, 78, 68 };
 
-        private delegate IntPtr UnloadAssetsDelegate();
-        private delegate bool IsAsyncOperationDoneDelegate(IntPtr asyncOp);
-        private delegate void InternalDestroyDelegate(IntPtr asyncOp);
-
-        private static UnloadAssetsDelegate OrigUnloadAssets;
-        private static IsAsyncOperationDoneDelegate OrigIsAsyncDoneDelegate;
-        private static InternalDestroyDelegate OrigInternalDestroy;
-
-        public static void InstallAssetUnloadHook()
-        {
-            OrigUnloadAssets = typeof(Resources)
-                .GetMethod("UnloadUnusedAssets")
-                .GetInternalPointer()
-                .AsDelegate<UnloadAssetsDelegate>();
-
-            NativeMethods.MonoAddInternalCall("UnityEngine.Resources::UnloadUnusedAssets", 
-                Marshal.GetFunctionPointerForDelegate(new UnloadAssetsDelegate(CustomUnloadAssets)));
-
-            OrigIsAsyncDoneDelegate = typeof(AsyncOperation)
-                .GetProperty("isDone")
-                .GetGetMethod()
-                .GetInternalPointer()
-                .AsDelegate<IsAsyncOperationDoneDelegate>();
-
-            OrigInternalDestroy = typeof(AsyncOperation)
-                .GetMethod("InternalDestroy", BindingFlags.Instance | BindingFlags.NonPublic)
-                .GetInternalPointer()
-                .AsDelegate<InternalDestroyDelegate>();
-
-            NativeMethods.MonoAddInternalCall("UnityEngine.AsyncOperation::InternalDestroy", 
-                Marshal.GetFunctionPointerForDelegate(new InternalDestroyDelegate(InternalDestroyHook)));
-        }
-
-        private static IntPtr asyncOpObj = IntPtr.Zero;
-
-        public static void InternalDestroyHook(IntPtr self)
-        {
-            asyncOpObj = IntPtr.Zero;
-            OrigInternalDestroy(self);
-        }
-
-        public static IntPtr CustomUnloadAssets()
-        {
-            if (asyncOpObj == IntPtr.Zero || OrigIsAsyncDoneDelegate(asyncOpObj))
-                asyncOpObj = OrigUnloadAssets();
-
-            return asyncOpObj;
-        }
-
-        private static UnityDragAndDropHook dragAndDropHook = new UnityDragAndDropHook();
+        private static readonly UnityDragAndDropHook dragAndDropHook = new UnityDragAndDropHook();
 
         public static void StartDragAndDrop()
         {

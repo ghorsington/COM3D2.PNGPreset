@@ -32,11 +32,6 @@ namespace COM3D2.PNGPreset.Patcher
             var presetLoadHookDef = pngPresetTd.GetMethod("PresetLoadHook");
             presetLoadMethDef.InjectWith(presetLoadHookDef, flags: InjectFlags.ModifyReturn | InjectFlags.PassInvokingInstance | InjectFlags.PassParametersVal);
 
-            var gameMainTd = md.GetType("GameMain");
-            var onInitializeMethDef = gameMainTd.GetMethod("OnInitialize");
-            var installAssetUnloadHook = pngPresetTd.GetMethod("InstallAssetUnloadHook");
-            onInitializeMethDef.InjectWith(installAssetUnloadHook);
-
             var sceneEditTd = md.GetType("SceneEdit");
 
             var startMethDef = sceneEditTd.GetMethod("Start");
