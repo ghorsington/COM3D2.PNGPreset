@@ -421,12 +421,13 @@ namespace B83.Win32
     {
         public delegate void DroppedFilesEvent(List<string> aPathNames, POINT aDropPoint);
 
-        private HookProc m_Callback;
-        private IntPtr m_Hook;
         private readonly IntPtr mainWindow;
 
 
         private readonly uint threadId = WinAPI.GetCurrentThreadId();
+
+        private HookProc m_Callback;
+        private IntPtr m_Hook;
 
         public UnityDragAndDropHook()
         {

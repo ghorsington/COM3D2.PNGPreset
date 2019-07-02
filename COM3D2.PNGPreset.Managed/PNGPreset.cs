@@ -11,7 +11,7 @@ namespace COM3D2.PNGPreset.Managed
     public static class PNGPreset
     {
         private static readonly byte[] IEND_MAGIC = {73, 69, 78, 68};
-        
+
         // Define both to be the same length to reduce number of buffers needed from two to one
         internal static byte[] EXT_DATA_BEGIN_MAGIC = Encoding.ASCII.GetBytes("EXTPRESET_BGN");
         internal static byte[] EXT_DATA_END_MAGIC = Encoding.ASCII.GetBytes("EXTPRESET_END");
@@ -77,7 +77,8 @@ namespace COM3D2.PNGPreset.Managed
         {
             result = null;
 
-            if (fileName == null || !Path.GetExtension(fileName).Equals(".png", StringComparison.InvariantCultureIgnoreCase))
+            if (fileName == null ||
+                !Path.GetExtension(fileName).Equals(".png", StringComparison.InvariantCultureIgnoreCase))
                 return false;
 
             var stream = br.BaseStream;
@@ -117,25 +118,14 @@ namespace COM3D2.PNGPreset.Managed
             if (!ExtPresetSupport.Enabled)
                 return;
 
-            Debug.Log($"Trying to set preset!");
-
             if (preset.strFileName == null ||
                 !Path.GetExtension(preset.strFileName).Equals(".png", StringComparison.InvariantCulture))
-            {
-                Debug.Log($"Preset file is not a PNG! File name: {preset.strFileName}");
-
                 return;
-            }
 
             var presetFile = Path.Combine(PresetPath, preset.strFileName);
 
-            Debug.Log($"Path: {presetFile}");
-
             if (!File.Exists(presetFile))
-            {
-                Debug.Log("No such file found!");
                 return;
-            }
 
             using (var fs = File.OpenRead(presetFile))
             {
@@ -146,11 +136,10 @@ namespace COM3D2.PNGPreset.Managed
 
                 if (!BytesEqual(buf, EXT_DATA_END_MAGIC))
                 {
-                    Debug.Log("No end magic found!");
+                    Debug.Log($"[PNGPreset] No end magic found for {presetFile}");
                     return;
                 }
 
-                Debug.Log("Found extpreset magic! Getting data...");
 
                 var pos = fs.Position - EXT_DATA_BEGIN_MAGIC.Length;
 
@@ -165,8 +154,6 @@ namespace COM3D2.PNGPreset.Managed
                         break;
                     pos--;
                 }
-
-                Debug.Log($"Found EXT start at {fs.Position}");
 
                 ExtPresetSupport.LoadExPresetData(fs, maid);
             }

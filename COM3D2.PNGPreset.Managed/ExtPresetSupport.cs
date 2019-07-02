@@ -18,55 +18,43 @@ namespace COM3D2.PNGPreset.Managed
 
         static ExtPresetSupport()
         {
-            Debug.Log("Checking if ExPreset is present...");
+            Debug.Log("[PNGPreset] Checking if ExPreset is present...");
             var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-
-            Debug.Log($"Got {assemblies.Length} assemblies");
 
             var extPresetAss = assemblies.FirstOrDefault(a =>
                 a.GetName().Name.EndsWith("ExternalPreset.Managed", StringComparison.InvariantCultureIgnoreCase));
 
-            Debug.Log($"Got assembly: {extPresetAss}");
-
             if (extPresetAss == null)
             {
-                Debug.Log("No ExPreset found! Aborting...");
+                Debug.Log("[PNGPreset] No ExtPreset found!");
                 return;
             }
 
             var exPresetType = extPresetAss.GetTypesSafe().FirstOrDefault(t => t.Name == "ExPreset");
 
-            Debug.Log($"Got ExPreset type: {exPresetType}");
-
             if (exPresetType == null)
             {
-                Debug.Log("No required ExPreset types found! Aborting...");
+                Debug.Log("[PNGPreset] No required ExPreset types found! Is your version too new/old?");
                 return;
             }
 
             loadExtPreset = exPresetType.GetMethod("Load", BindingFlags.Public | BindingFlags.Static)
                 .AsDelegate<Action<Maid, CharacterMgr.Preset>>();
 
-            Debug.Log($"Got Load method: {loadExtPreset}");
-
             var xmlMemoryField = exPresetType.GetField("xmlMemory", BindingFlags.NonPublic | BindingFlags.Static);
 
-            Debug.Log($"Got xmlMemory: {xmlMemoryField}");
             setXmlMemory = CreateStaticFieldSetter<XmlDocument>(xmlMemoryField);
             getXmlMemory = CreateStaticFieldGetter<XmlDocument>(xmlMemoryField);
 
-            Debug.Log("ExPreset detected!");
+            Debug.Log("[PNGPreset] ExtPreset detected!");
 
             Enabled = true;
         }
 
         private static Func<T> CreateStaticFieldGetter<T>(FieldInfo fi)
         {
-            Debug.Log($"Creating getter with name {fi.Name}_{fi.DeclaringType.FullName.Replace(".", "_")}_get");
-
-            var m = new DynamicMethod($"{fi.Name}_{fi.DeclaringType.FullName.Replace(".", "_")}_get", typeof(T), null, typeof(ExtPresetSupport), true);
-
-            Debug.Log($"Created getter {m}");
+            var m = new DynamicMethod($"{fi.Name}_{fi.DeclaringType.FullName.Replace(".", "_")}_get", typeof(T), null,
+                typeof(ExtPresetSupport), true);
 
             var il = m.GetILGenerator();
 
@@ -78,19 +66,14 @@ namespace COM3D2.PNGPreset.Managed
 
         private static Action<T> CreateStaticFieldSetter<T>(FieldInfo fi)
         {
-            Debug.Log($"Creating setter with name {fi.Name}_{fi.DeclaringType.FullName.Replace(".", "_")}_set");
-
-            var m = new DynamicMethod($"{fi.Name}_{fi.DeclaringType.FullName.Replace(".", "_")}_set", null, new[] {typeof(T)}, typeof(ExtPresetSupport), true);
-
-            Debug.Log($"Created setter {m}");
+            var m = new DynamicMethod($"{fi.Name}_{fi.DeclaringType.FullName.Replace(".", "_")}_set", null,
+                new[] {typeof(T)}, typeof(ExtPresetSupport), true);
 
             var il = m.GetILGenerator();
 
             il.Emit(OpCodes.Ldarg_0);
             il.Emit(OpCodes.Stsfld, fi);
             il.Emit(OpCodes.Ret);
-
-            Debug.Log("Created! Returning a delegate!");
 
             return m.CreateDelegate(typeof(Action<T>)) as Action<T>;
         }
@@ -100,7 +83,7 @@ namespace COM3D2.PNGPreset.Managed
             if (!Enabled)
                 return null;
 
-            Debug.Log("Saving ExtPreset data");
+            Debug.Log("[PNGPreset] Saving ExtPreset data");
 
             // Since we save data using memory method, ExtPreset will fill the saved data using its temporary buffer
             var doc = getXmlMemory();
@@ -116,9 +99,6 @@ namespace COM3D2.PNGPreset.Managed
                 ms.Position = 0;
                 var compressed = LZMA.Compress(ms);
 
-                Debug.Log($"Extra data: {ms.Length} bytes");
-                Debug.Log($"Compressed data: {compressed.Length} bytes");
-
                 return compressed;
             }
         }
@@ -130,21 +110,16 @@ namespace COM3D2.PNGPreset.Managed
 
             using (var ds = LZMA.Decompress(s, PNGPreset.EXT_DATA_END_MAGIC.Length))
             {
-                Debug.Log($"Got decompressed file of length: {ds.Length}!");
-
-                File.WriteAllBytes("wew.xml", ds.ToArray());
-
                 ds.Position = 0;
                 var doc = new XmlDocument();
                 doc.Load(ds);
-                Debug.Log("Loaded XML");
                 setXmlMemory(doc);
             }
 
-            Debug.Log("Loading preset");
+            Debug.Log("[PNGPreset] Loading ExtPreset data");
             // If we load ex preset while using no file name, ExtPreset will use the temporary buffer
             loadExtPreset(maid, new CharacterMgr.Preset {strFileName = string.Empty});
-            Debug.Log("Preset loaded");
+            Debug.Log("[PNGPreset] ExtPreset data loaded");
 
             setXmlMemory(null);
         }
