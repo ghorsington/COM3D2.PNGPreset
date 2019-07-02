@@ -1,12 +1,17 @@
 # COM3D2.PNGPreset
 
-Save maid presets (and ExPreset data) into PNG files!
+Save maid presets (and ExtPreset data) into PNG files!
 
 ## Features
 
 * Saves maid presets into small (~200 kB) PNG images
 * Can be used like normal presets
 * Supports encoding ExtPreset data
+
+## Installation
+
+Download the latest [release](https://github.com/denikson/COM3D2.PNGPreset/releases).  
+Extract the archive into `Sybaris` folder.
 
 ## How to use
 
@@ -29,7 +34,7 @@ To load a preset, put it into `Preset` folder and load normally.
 ![Drag and drop PNG presets to load them](img/import_cards.gif)
 
 
-### Example preset
+## Example preset
 
 A PNG preset looks like a normal image:
 
