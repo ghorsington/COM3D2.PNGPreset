@@ -41,3 +41,9 @@ A PNG preset looks like a normal image:
 ![PNG preset example](img/pre_菅原美優_20190703010624.png)
 
 Try loading this preset into your game!
+
+## I want to uninstall this! How do I convert PNG presets to normal presets?
+
+Sorry to hear that! In order to convert PNG presets to normal presets, use PNG2Preset tool included in [releases](https://github.com/denikson/COM3D2.PNGPreset/releases).
+
+Simple drag and drop PNG files you want to convert and the tool will do the rest.
