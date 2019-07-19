@@ -11,7 +11,7 @@ Save maid presets (and ExtPreset data) into PNG files!
 ## Installation
 
 Download the latest [release](https://github.com/denikson/COM3D2.PNGPreset/releases).  
-Extract the archive into `Sybaris` folder.
+Put the contents of archive's `Sybaris` folder into your game's `Sybaris` folder. 
 
 ## How to use
 
@@ -46,4 +46,4 @@ Try loading this preset into your game!
 
 Sorry to hear that! In order to convert PNG presets to normal presets, use PNG2Preset tool included in [releases](https://github.com/denikson/COM3D2.PNGPreset/releases).
 
-Simple drag and drop PNG files you want to convert and the tool will do the rest.
+Simply drag and drop PNG files you want to convert and the tool will do the rest.
